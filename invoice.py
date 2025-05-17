@@ -33,19 +33,23 @@ class InvoiceGenerator:
             alignment=1  # Center
         ))
         
+        # Use custom InvoiceHeading instead of Heading1 to avoid conflict
         self.styles.add(ParagraphStyle(
-            name='Heading1',
+            name='InvoiceHeading',
             fontName='Helvetica-Bold',
             fontSize=12,
             leading=14,
         ))
         
-        self.styles.add(ParagraphStyle(
-            name='Normal',
-            fontName='Helvetica',
-            fontSize=10,
-            leading=12,
-        ))
+        # Normal style already exists in getSampleStyleSheet(), so we'll override it
+        # Only if we need custom settings
+        if 'Normal' not in self.styles:
+            self.styles.add(ParagraphStyle(
+                name='Normal',
+                fontName='Helvetica',
+                fontSize=10,
+                leading=12,
+            ))
         
         self.styles.add(ParagraphStyle(
             name='Small',
@@ -133,7 +137,7 @@ class InvoiceGenerator:
         elements.append(Spacer(1, 0.25*inch))
         
         # Work summary
-        elements.append(Paragraph("WORK SUMMARY", self.styles['Heading1']))
+        elements.append(Paragraph("WORK SUMMARY", self.styles['InvoiceHeading']))
         elements.append(Spacer(1, 0.1*inch))
         
         # Create work details table
@@ -173,7 +177,7 @@ class InvoiceGenerator:
         elements.append(Spacer(1, 0.25*inch))
         
         # Payment details
-        elements.append(Paragraph("PAYMENT DETAILS", self.styles['Heading1']))
+        elements.append(Paragraph("PAYMENT DETAILS", self.styles['InvoiceHeading']))
         elements.append(Spacer(1, 0.1*inch))
         
         payment_data = [
