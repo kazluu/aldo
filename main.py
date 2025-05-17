@@ -45,9 +45,9 @@ def log_work():
                 flash('Hours must be a positive number', 'error')
                 return redirect(url_for('log_work'))
             
-            if not description:
-                flash('Description is required', 'error')
-                return redirect(url_for('log_work'))
+            # Description is now optional, so we don't need this check
+            if description is None:
+                description = ""
             
             # Convert date string to date object
             date = datetime.strptime(date_str, '%Y-%m-%d').date()
