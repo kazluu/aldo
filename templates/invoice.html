@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+
+{% block title %}Generate Invoice - Aldo{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="mb-0">Generate Invoice</h2>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{{ url_for('invoice') }}">
+                    <div class="mb-3">
+                        <label for="start_date" class="form-label">Start Date</label>
+                        <input type="date" class="form-control" id="start_date" name="start_date" value="{{ start_date }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="end_date" class="form-label">End Date</label>
+                        <input type="date" class="form-control" id="end_date" name="end_date" value="{{ end_date }}" required>
+                    </div>
+                    <div class="alert alert-info">
+                        <h5 class="alert-heading">Before you generate</h5>
+                        <p>Make sure you have:</p>
+                        <ul>
+                            <li>Logged all your work hours for the selected period</li>
+                            <li>Updated your business and client information in settings</li>
+                            <li>Set your hourly rate and payment details</li>
+                        </ul>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Generate PDF Invoice</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

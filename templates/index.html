@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+
+{% block title %}Aldo - Work Hours Tracker & Invoice Generator{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center py-5">
+    <div class="col-md-8 text-center">
+        <h1 class="display-4 mb-4">Aldo Work Hours Tracker</h1>
+        <p class="lead mb-5">Track your work hours and generate professional invoices with ease</p>
+        
+        <div class="row mb-5">
+            <div class="col-md-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">Log Hours</h5>
+                        <p class="card-text">Record your daily work hours and descriptions</p>
+                        <a href="{{ url_for('log_work') }}" class="btn btn-primary">Log Work</a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">View Summary</h5>
+                        <p class="card-text">Check your work hours by day, month, or year</p>
+                        <a href="{{ url_for('summary') }}" class="btn btn-primary">View Summary</a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">Generate Invoice</h5>
+                        <p class="card-text">Create professional PDF invoices for clients</p>
+                        <a href="{{ url_for('invoice') }}" class="btn btn-primary">Create Invoice</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="alert alert-info">
+            <h4 class="alert-heading">Getting Started</h4>
+            <p>Before generating invoices, make sure to update your business and client information in the settings.</p>
+            <a href="{{ url_for('settings') }}" class="btn btn-info">Update Settings</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

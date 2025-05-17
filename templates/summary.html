@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+
+{% block title %}Work Summary - Aldo{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h2 class="mb-0">Work Summary</h2>
+            </div>
+            <div class="card-body">
+                <div class="btn-group mb-4" role="group" aria-label="Period selector">
+                    <a href="{{ url_for('summary', period='day') }}" class="btn btn-{{ 'primary' if period == 'day' else 'outline-primary' }}">Day</a>
+                    <a href="{{ url_for('summary', period='month') }}" class="btn btn-{{ 'primary' if period == 'month' else 'outline-primary' }}">Month</a>
+                    <a href="{{ url_for('summary', period='year') }}" class="btn btn-{{ 'primary' if period == 'year' else 'outline-primary' }}">Year</a>
+                </div>
+
+                <h3>Summary for: {{ period|capitalize }}</h3>
+                
+                {% if summary %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Hours</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for date, entries in summary.items() %}
+                                    <tr class="table-active">
+                                        <td colspan="3" class="fw-bold">{{ date }}</td>
+                                    </tr>
+                                    {% for entry in entries %}
+                                    <tr>
+                                        <td></td>
+                                        <td>{{ entry.hours }}</td>
+                                        <td>{{ entry.description }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr class="table-dark">
+                                    <td class="text-end fw-bold">Total Hours:</td>
+                                    <td class="fw-bold">{{ total_hours }}</td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">
+                        No work hours recorded for this period.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-body">
+                <h3>Actions</h3>
+                <div class="row">
+                    <div class="col-md-6 mb-2">
+                        <a href="{{ url_for('log_work') }}" class="btn btn-primary w-100">Log More Hours</a>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <a href="{{ url_for('invoice') }}" class="btn btn-success w-100">Generate Invoice</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
