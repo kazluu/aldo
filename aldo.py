@@ -88,7 +88,7 @@ def view_summary(period):
             total_hours += day_hours
             click.echo(f"\n{date_str} - {day_hours:.2f} hours:")
             for entry in entries:
-                click.echo(f"  • {entry['hours']:.2f} hours: {entry['description']}")
+                click.echo(f"  • {entry['hours']:.2f} hours")
         
         # Print total
         click.echo(f"\n{'-'*60}")
