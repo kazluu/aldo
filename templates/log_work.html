@@ -7,23 +7,27 @@
     <div class="col-md-8">
         <div class="card">
             <div class="card-header">
-                <h2 class="mb-0">Log Work Hours</h2>
+                <h2 class="mb-0">Quick Log</h2>
             </div>
             <div class="card-body">
                 <form method="post" action="{{ url_for('log_work') }}">
-                    <div class="mb-3">
-                        <label for="date" class="form-label">Date</label>
-                        <input type="date" class="form-control" id="date" name="date" value="{{ today }}" required>
+                    <div class="row align-items-end">
+                        <div class="col-md-3">
+                            <label for="date" class="form-label">Date</label>
+                            <input type="date" class="form-control" id="date" name="date" value="{{ today }}" required>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="hours" class="form-label">Hours</label>
+                            <input type="number" class="form-control" id="hours" name="hours" min="0.1" step="0.1" value="1.0" required>
+                        </div>
+                        <div class="col-md-5">
+                            <label for="description" class="form-label">What did you work on?</label>
+                            <input type="text" class="form-control" id="description" name="description" required>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-primary w-100">Log</button>
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label for="hours" class="form-label">Hours Worked</label>
-                        <input type="number" class="form-control" id="hours" name="hours" min="0.1" step="0.1" placeholder="Enter hours worked (e.g., 4.5)" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="description" class="form-label">Work Description</label>
-                        <textarea class="form-control" id="description" name="description" rows="3" placeholder="Describe what you worked on" required></textarea>
-                    </div>
-                    <button type="submit" class="btn btn-primary">Log Work</button>
                 </form>
             </div>
         </div>
