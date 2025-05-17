@@ -60,7 +60,7 @@ class InvoiceGenerator:
         
         self.styles.add(ParagraphStyle(
             name='Footer',
-            fontName='Helvetica-Italic',
+            fontName='Helvetica',  # Changed from Helvetica-Italic to Helvetica
             fontSize=8,
             leading=10,
             alignment=1  # Center
