@@ -24,9 +24,9 @@ class InvoiceGenerator:
     
     def _setup_custom_styles(self):
         """Set up custom paragraph styles for the invoice"""
-        # Add custom styles
+        # Add custom styles - use a different name to avoid conflict
         self.styles.add(ParagraphStyle(
-            name='Title',
+            name='InvoiceTitle',
             fontName='Helvetica-Bold',
             fontSize=16,
             leading=20,
@@ -97,7 +97,7 @@ class InvoiceGenerator:
         elements = []
         
         # Invoice header
-        elements.append(Paragraph(f"INVOICE", self.styles['Title']))
+        elements.append(Paragraph(f"INVOICE", self.styles['InvoiceTitle']))
         elements.append(Spacer(1, 0.25*inch))
         
         # Invoice metadata table
