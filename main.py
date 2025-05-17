@@ -120,7 +120,12 @@ def invoice():
             output_path = invoice_generator.generate_invoice(start_date, end_date, entries, output_filename)
             
             # Stream the PDF file as response
-            return send_file(output_path, as_attachment=True)
+            return send_file(
+                output_path, 
+                as_attachment=True,
+                download_name=output_filename,
+                mimetype="application/pdf"
+            )
         
         except ValueError as e:
             flash(f'Error: {str(e)}', 'error')

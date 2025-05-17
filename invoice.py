@@ -86,7 +86,8 @@ class InvoiceGenerator:
         # Prepare invoice date and due date
         invoice_date = datetime.now().strftime('%Y-%m-%d')
         
-        # Create PDF
+        # Create PDF - use absolute path for better reliability
+        # Save to a temporary folder to ensure the file can be served by Flask
         output_path = Path(output_filename).resolve()
         doc = SimpleDocTemplate(
             str(output_path),
