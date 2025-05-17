@@ -46,18 +46,17 @@ def cli():
 @cli.command('log')
 @click.argument('date', callback=validate_date)
 @click.argument('hours', type=float, callback=validate_hours)
-@click.argument('description')
-def log_work(date, hours, description):
+def log_work(date, hours):
     """
     Record work hours for a specific date.
 
     DATE: Date in YYYY-MM-DD format
     HOURS: Number of hours worked (positive number)
-    DESCRIPTION: Description of work performed
     """
     try:
-        storage.log_work(date, hours, description)
-        click.echo(f"Successfully logged {hours} hours on {date} for: '{description}'")
+        # Use an empty string for description
+        storage.log_work(date, hours, "")
+        click.echo(f"Successfully logged {hours} hours on {date}")
     except Exception as e:
         click.echo(f"Error logging work: {str(e)}", err=True)
         sys.exit(1)

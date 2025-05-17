@@ -12,22 +12,20 @@
             <div class="card-body">
                 <form method="post" action="{{ url_for('log_work') }}">
                     <div class="row align-items-end">
-                        <div class="col-md-3">
+                        <div class="col-md-5">
                             <label for="date" class="form-label">Date</label>
                             <input type="date" class="form-control" id="date" name="date" value="{{ today }}" required>
                         </div>
-                        <div class="col-md-2">
+                        <div class="col-md-4">
                             <label for="hours" class="form-label">Hours</label>
                             <input type="number" class="form-control" id="hours" name="hours" min="0.1" step="0.1" value="1.0" required>
                         </div>
-                        <div class="col-md-5">
-                            <label for="description" class="form-label">What did you work on?</label>
-                            <input type="text" class="form-control" id="description" name="description" required>
-                        </div>
-                        <div class="col-md-2">
-                            <button type="submit" class="btn btn-primary w-100">Log</button>
+                        <div class="col-md-3">
+                            <button type="submit" class="btn btn-primary w-100">Log Hours</button>
                         </div>
                     </div>
+                    <!-- Hidden field for description -->
+                    <input type="hidden" id="description" name="description" value="">
                 </form>
             </div>
         </div>

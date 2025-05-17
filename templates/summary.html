@@ -25,19 +25,17 @@
                                 <tr>
                                     <th>Date</th>
                                     <th>Hours</th>
-                                    <th>Description</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for date, entries in summary.items() %}
                                     <tr class="table-active">
-                                        <td colspan="3" class="fw-bold">{{ date }}</td>
+                                        <td colspan="2" class="fw-bold">{{ date }}</td>
                                     </tr>
                                     {% for entry in entries %}
                                     <tr>
                                         <td></td>
                                         <td>{{ entry.hours }}</td>
-                                        <td>{{ entry.description }}</td>
                                     </tr>
                                     {% endfor %}
                                 {% endfor %}
@@ -46,7 +44,6 @@
                                 <tr class="table-dark">
                                     <td class="text-end fw-bold">Total Hours:</td>
                                     <td class="fw-bold">{{ total_hours }}</td>
-                                    <td></td>
                                 </tr>
                             </tfoot>
                         </table>
