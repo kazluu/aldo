@@ -168,13 +168,8 @@ class InvoiceGenerator:
         elements.append(Spacer(1, 0.1*inch))
         
         payment_data = [
-            ["Hourly Rate:", f"{payment['currency']} {hourly_rate:.2f}"],
-            ["Total Amount Due:", f"{payment['currency']} {total_amount:.2f}"],
-            ["Payment Terms:", payment['payment_terms']],
-            ["Bank:", payment['bank_name']],
-            ["Account Name:", payment['account_name']],
-            ["Account Number:", payment['account_number']],
-            ["Routing/SWIFT:", payment['routing_number'] if payment['routing_number'] else payment['swift']],
+            ["Hourly Rate:", f"${hourly_rate:.2f}"],
+            ["Total Amount Due:", f"${total_amount:.2f}"],
         ]
         payment_table = Table(payment_data, colWidths=[2*inch, 4*inch])
         payment_table.setStyle(TableStyle([
