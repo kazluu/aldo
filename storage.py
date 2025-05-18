@@ -45,10 +45,24 @@ class WorkHoursStorage:
         except Exception as e:
             raise Exception(f"Error saving data: {str(e)}")
     
-    def log_work(self, date, hours, description):
+    def log_work(self, date, hours, description=""):
         """Log work hours for a specific date"""
         # Convert date to string for JSON storage
         date_str = date.strftime('%Y-%m-%d')
+        
+        # Check if there's an existing entry for this date
+        # If so, we'll remove it before adding the new one
+        existing_entries = [
+            i for i, entry in enumerate(self.data["entries"])
+            if entry["date"] == date_str
+        ]
+        
+        # If entry exists for this date, remove it and notify
+        if existing_entries:
+            for index in sorted(existing_entries, reverse=True):
+                old_entry = self.data["entries"][index]
+                del self.data["entries"][index]
+                print(f"Replaced previous entry: {old_entry['hours']} hours on {date_str}")
         
         # Create new entry
         entry = {

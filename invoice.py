@@ -70,10 +70,9 @@ class InvoiceGenerator:
         """Generate a PDF invoice for the given date range and entries"""
         # Get config data
         cfg = self.config.get_config()
-        business = cfg['business']
-        client = cfg['client']
-        payment = cfg['payment']
-        invoice_cfg = cfg['invoice']
+        company = cfg.get('company', {'name': 'Your Company Name'})
+        payment = cfg.get('payment', {'hourly_rate': 50.00})
+        invoice_cfg = cfg.get('invoice', {'footer_text': 'Thank you for your business!'})
         
         # Calculate total amount
         total_hours = self.storage.get_total_hours(entries)
@@ -83,7 +82,7 @@ class InvoiceGenerator:
         # Get invoice number
         invoice_number = self.config.get_next_invoice_number()
         
-        # Prepare invoice date and due date
+        # Prepare invoice date
         invoice_date = datetime.now().strftime('%Y-%m-%d')
         
         # Create PDF - use absolute path for better reliability
@@ -120,21 +119,8 @@ class InvoiceGenerator:
         elements.append(invoice_table)
         elements.append(Spacer(1, 0.25*inch))
         
-        # From and To addresses
-        address_data = [
-            ["FROM:", "TO:"],
-            [
-                f"{business['name']}\n{business['address']}\n{business['city']}, {business['state']} {business['zip']}\n{business['country']}\nPhone: {business['phone']}\nEmail: {business['email']}",
-                f"{client['name']}\n{client['address']}\n{client['city']}, {client['state']} {client['zip']}\n{client['country']}\nContact: {client['contact_person']}\nEmail: {client['email']}"
-            ]
-        ]
-        address_table = Table(address_data, colWidths=[2.75*inch, 2.75*inch])
-        address_table.setStyle(TableStyle([
-            ('FONTNAME', (0, 0), (1, 0), 'Helvetica-Bold'),
-            ('FONTNAME', (0, 1), (1, 1), 'Helvetica'),
-            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ]))
-        elements.append(address_table)
+        # Company name
+        elements.append(Paragraph(f"Company: {company['name']}", self.styles['Normal']))
         elements.append(Spacer(1, 0.25*inch))
         
         # Work summary

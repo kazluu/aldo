@@ -7,7 +7,7 @@ A CLI application for freelancers to track their hours and generate invoices.
 import os
 import sys
 import click
-from datetime import datetime
+from datetime import datetime, timedelta
 from storage import WorkHoursStorage
 from config import Config
 from invoice import InvoiceGenerator
@@ -17,13 +17,26 @@ config = Config()
 storage = WorkHoursStorage()
 
 def validate_date(ctx, param, value):
-    """Validate date format (YYYY-MM-DD)"""
+    """Validate date format (YYYY-MM-DD) or handle aliases"""
     if not value:
         return value
+    
+    # Handle date aliases
+    today = datetime.now().date()
+    if value == "today":
+        return today
+    elif value == "yesterday":
+        return today - timedelta(days=1)
+    elif value == "tomorrow":
+        return today + timedelta(days=1)
+    elif value == "daybefore":
+        return today - timedelta(days=2)
+    
+    # Handle regular date format
     try:
         return datetime.strptime(value, '%Y-%m-%d').date()
     except ValueError:
-        raise click.BadParameter('Date must be in YYYY-MM-DD format')
+        raise click.BadParameter('Date must be in YYYY-MM-DD format or one of: today, yesterday, tomorrow, daybefore')
 
 def validate_hours(ctx, param, value):
     """Validate hours (must be a positive number)"""
@@ -50,13 +63,15 @@ def log_work(date, hours):
     """
     Record work hours for a specific date.
 
-    DATE: Date in YYYY-MM-DD format
+    DATE: Date in YYYY-MM-DD format or an alias (today, yesterday, tomorrow, daybefore)
     HOURS: Number of hours worked (positive number)
+    
+    If a log entry already exists for the specified date, it will be replaced.
     """
     try:
-        # Use an empty string for description
-        storage.log_work(date, hours, "")
-        click.echo(f"Successfully logged {hours} hours on {date}")
+        storage.log_work(date, hours)
+        date_str = date.strftime('%Y-%m-%d')
+        click.echo(f"Successfully logged {hours} hours on {date_str}")
     except Exception as e:
         click.echo(f"Error logging work: {str(e)}", err=True)
         sys.exit(1)
