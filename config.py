@@ -7,43 +7,15 @@ import json
 from pathlib import Path
 
 DEFAULT_CONFIG = {
-    "business": {
-        "name": "Your Business Name",
-        "address": "Your Business Address",
-        "city": "City",
-        "state": "State",
-        "zip": "Zip Code",
-        "country": "Country",
-        "phone": "Phone Number",
-        "email": "your.email@example.com",
-        "website": "www.yourbusiness.com",
-        "tax_id": "Your Tax ID"
-    },
-    "client": {
-        "name": "Client Company Name",
-        "address": "Client Address",
-        "city": "Client City",
-        "state": "Client State",
-        "zip": "Client Zip Code",
-        "country": "Client Country",
-        "contact_person": "Client Contact Name",
-        "email": "client.email@example.com",
-        "phone": "Client Phone Number"
+    "company": {
+        "name": "Your Company Name"
     },
     "payment": {
-        "bank_name": "Your Bank Name",
-        "account_name": "Your Account Name",
-        "account_number": "Your Account Number",
-        "routing_number": "Your Routing Number",
-        "iban": "Your IBAN",
-        "swift": "Your SWIFT/BIC",
-        "payment_terms": "Due within 30 days",
-        "currency": "USD",
         "hourly_rate": 50.00
     },
     "invoice": {
         "prefix": "INV-",
-        "next_number": 1,
+        "next_number": 1000,
         "footer_text": "Thank you for your business!"
     }
 }
@@ -102,7 +74,8 @@ class Config:
     def get_next_invoice_number(self):
         """Get and increment the next invoice number"""
         current = self.config['invoice']['next_number']
-        self.config['invoice']['next_number'] += 1
+        # Increment by 10 instead of 1
+        self.config['invoice']['next_number'] += 10
         self.save_config()
         return f"{self.config['invoice']['prefix']}{current:04d}"
     
