@@ -8,7 +8,7 @@ version = "1.0.0"
 description = "Work Hours Tracker and Invoice Generator for Freelancers"
 readme = "README.md"
 requires-python = ">=3.8"
-license = "MIT"
+license = {text = "MIT"}
 authors = [
     {name = "Aldo Developer", email = "dev@example.com"}
 ]
@@ -26,6 +26,7 @@ classifiers = [
 dependencies = [
     "click>=8.0.0",
     "reportlab>=3.6.0",
+    "appdirs>=1.4.4",
 ]
 
 [project.scripts]
