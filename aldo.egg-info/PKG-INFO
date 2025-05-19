@@ -1,3 +1,29 @@
+Metadata-Version: 2.4
+Name: aldo
+Version: 1.0.0
+Summary: Work Hours Tracker and Invoice Generator for Freelancers
+Author-email: Aldo Developer <dev@example.com>
+License: MIT
+Project-URL: Homepage, https://github.com/yourusername/aldo
+Project-URL: Bug Tracker, https://github.com/yourusername/aldo/issues
+Classifier: Development Status :: 4 - Beta
+Classifier: Environment :: Console
+Classifier: Intended Audience :: End Users/Desktop
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: click>=8.0.0
+Requires-Dist: reportlab>=3.6.0
+Requires-Dist: appdirs>=1.4.4
+Requires-Dist: setuptools>=75.3.2
+Dynamic: license-file
+
 # Aldo - Work Hours Tracker and Invoice Generator
 
 Aldo is a command-line application for freelancers to track their work hours and generate professional PDF invoices.
