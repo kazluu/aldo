@@ -9,7 +9,7 @@ url="https://github.com/yourusername/aldo"
 license=('MIT')
 depends=('python' 'python-click' 'python-reportlab' 'python-appdirs')
 makedepends=('python-build' 'python-installer' 'python-wheel' 'python-setuptools')
-source=("$pkgname-$pkgver.tar.gz")
+source=("$pkgname-$pkgver.tar.gz::file://$(pwd)/$pkgname-$pkgver.tar.gz")
 sha256sums=('SKIP')  # Replace with actual hash when distributing
 
 prepare() {

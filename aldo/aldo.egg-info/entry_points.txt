@@ -1,0 +1,2 @@
+[console_scripts]
+aldo = aldo.cli:main
