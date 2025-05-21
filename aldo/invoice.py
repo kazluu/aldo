@@ -102,18 +102,18 @@ class InvoiceGenerator:
         
         # Invoice header
         elements.append(Paragraph("Invoice", self.styles['InvoiceTitle']))
-        elements.append(Spacer(1, 0.25*inch))
+        elements.append(Spacer(1, 0.5*inch))
         
         # Create the new 2x3 invoice information table
         # First row: Invoice Number, Date of Issue, Due Date
         # Second row: Billed To, From
         
-        company_name = company.get('name', 'Your Company Name')
-        company_address = company.get('address', 'Your Company Address')
+        company_name = company.get('name')
+        company_address = company.get('address', '')
         company_info = f"{company_name}\n{company_address}"
         
         client_name = client.get('name', 'Client Name')
-        client_address = client.get('address', 'Client Address')
+        client_address = client.get('address', '')
         client_info = f"{client_name}\n{client_address}"
         
         # Create cell contents with title and value
@@ -137,20 +137,20 @@ class InvoiceGenerator:
         # Style the table
         invoice_info_table.setStyle(TableStyle([
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-            ('BACKGROUND', (0, 0), (-1, -1), colors.whitesmoke),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.white),
+            ('BACKGROUND', (0, 0), (-1, -1), colors.white),
             ('PADDING', (0, 0), (-1, -1), 6),
         ]))
         
         elements.append(invoice_info_table)
-        elements.append(Spacer(1, 0.25*inch))
+        elements.append(Spacer(1, 0.5*inch))
         
         # Work summary
         elements.append(Paragraph("WORK SUMMARY", self.styles['InvoiceHeading']))
         elements.append(Spacer(1, 0.1*inch))
         
         # Create work details table
-        work_data = [["Date", "Hours", "Description"]]
+        work_data = [["Date", "Hours", "Amount"]]
         
         # Group entries by date
         entries_by_date = {}
@@ -166,13 +166,13 @@ class InvoiceGenerator:
             for i, entry in enumerate(date_entries):
                 # Only show date for first entry of the day
                 date_display = date if i == 0 else ""
-                work_data.append([date_display, f"{entry['hours']:.2f}", entry['description']])
+                work_data.append([date_display, f"{entry['hours']:.2f}", entry['hours'] * hourly_rate])
         
         # Add total row
         work_data.append(["", "", ""])
         work_data.append(["TOTAL:", f"{total_hours:.2f}", ""])
         
-        work_table = Table(work_data, colWidths=[1*inch, 0.75*inch, 4.25*inch])
+        work_table = Table(work_data, colWidths=[1*inch, 0.75*inch, 0.75*inch])
         work_table.setStyle(TableStyle([
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),  # Header row
             ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
@@ -183,7 +183,7 @@ class InvoiceGenerator:
             ('LINEABOVE', (0, -1), (-1, -1), 1, colors.black),  # Line above total
         ]))
         elements.append(work_table)
-        elements.append(Spacer(1, 0.25*inch))
+        elements.append(Spacer(1, 0.5*inch))
         
         # Payment details
         elements.append(Paragraph("PAYMENT DETAILS", self.styles['InvoiceHeading']))
