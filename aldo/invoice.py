@@ -3,7 +3,7 @@ Invoice generation for Aldo
 """
 
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 import tempfile
 from reportlab.lib.pagesizes import letter
@@ -29,8 +29,7 @@ class InvoiceGenerator:
             name='InvoiceTitle',
             fontName='Helvetica-Bold',
             fontSize=16,
-            leading=20,
-            alignment=1  # Center
+            leading=20
         ))
         
         # Use custom InvoiceHeading instead of Heading1 to avoid conflict
@@ -71,6 +70,7 @@ class InvoiceGenerator:
         # Get config data
         cfg = self.config.get_config()
         company = cfg.get('company', {'name': 'Your Company Name'})
+        client = cfg.get('client', {'name': 'Client Name', 'address': 'Client Address'})
         payment = cfg.get('payment', {'hourly_rate': 50.00})
         invoice_cfg = cfg.get('invoice', {'footer_text': 'Thank you for your business!'})
         
@@ -82,11 +82,11 @@ class InvoiceGenerator:
         # Get invoice number
         invoice_number = self.config.get_next_invoice_number()
         
-        # Prepare invoice date
+        # Prepare invoice date and due date (30 days from now)
         invoice_date = datetime.now().strftime('%Y-%m-%d')
+        due_date = (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d')
         
         # Create PDF - use absolute path for better reliability
-        # Save to a temporary folder to ensure the file can be served by Flask
         output_path = Path(output_filename).resolve()
         doc = SimpleDocTemplate(
             str(output_path),
@@ -101,26 +101,48 @@ class InvoiceGenerator:
         elements = []
         
         # Invoice header
-        elements.append(Paragraph(f"INVOICE", self.styles['InvoiceTitle']))
+        elements.append(Paragraph("Invoice", self.styles['InvoiceTitle']))
         elements.append(Spacer(1, 0.25*inch))
         
-        # Invoice metadata table
-        invoice_data = [
-            ["Invoice Number:", invoice_number],
-            ["Invoice Date:", invoice_date],
-            ["Period:", f"{start_date} to {end_date}"],
+        # Create the new 2x3 invoice information table
+        # First row: Invoice Number, Date of Issue, Due Date
+        # Second row: Billed To, From
+        
+        company_name = company.get('name', 'Your Company Name')
+        company_address = company.get('address', 'Your Company Address')
+        company_info = f"{company_name}\n{company_address}"
+        
+        client_name = client.get('name', 'Client Name')
+        client_address = client.get('address', 'Client Address')
+        client_info = f"{client_name}\n{client_address}"
+        
+        # Create cell contents with title and value
+        inv_num_cell = Paragraph(f"<b>INVOICE NUMBER</b><br/>{invoice_number}", self.styles['Normal'])
+        date_cell = Paragraph(f"<b>DATE OF ISSUE</b><br/>{invoice_date}", self.styles['Normal'])
+        due_date_cell = Paragraph(f"<b>DUE DATE</b><br/>{due_date}", self.styles['Normal'])
+        billed_to_cell = Paragraph(f"<b>BILLED TO</b><br/>{client_info}", self.styles['Normal'])
+        from_cell = Paragraph(f"<b>FROM</b><br/>{company_info}", self.styles['Normal'])
+        period_cell = Paragraph(f"<b>PERIOD</b><br/>{start_date} to {end_date}", self.styles['Normal'])
+        
+        # Create the table with the cells
+        invoice_info_data = [
+            [inv_num_cell, date_cell, due_date_cell],
+            [billed_to_cell, from_cell, period_cell]
         ]
-        invoice_table = Table(invoice_data, colWidths=[2*inch, 3*inch])
-        invoice_table.setStyle(TableStyle([
-            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-            ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
-            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ]))
-        elements.append(invoice_table)
-        elements.append(Spacer(1, 0.25*inch))
         
-        # Company name
-        elements.append(Paragraph(f"Company: {company['name']}", self.styles['Normal']))
+        # Create the table with equal column widths
+        col_width = doc.width / 3
+        invoice_info_table = Table(invoice_info_data, colWidths=[col_width, col_width, col_width])
+        
+        # Style the table
+        invoice_info_table.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('BACKGROUND', (0, 0), (-1, -1), colors.whitesmoke),
+            ('PADDING', (0, 0), (-1, -1), 6),
+        ]))
+        
+        elements.append(invoice_info_table)
         elements.append(Spacer(1, 0.25*inch))
         
         # Work summary
@@ -148,7 +170,7 @@ class InvoiceGenerator:
         
         # Add total row
         work_data.append(["", "", ""])
-        work_data.append(["TOTAL HOURS:", f"{total_hours:.2f}", ""])
+        work_data.append(["TOTAL:", f"{total_hours:.2f}", ""])
         
         work_table = Table(work_data, colWidths=[1*inch, 0.75*inch, 4.25*inch])
         work_table.setStyle(TableStyle([
@@ -180,9 +202,7 @@ class InvoiceGenerator:
         ]))
         elements.append(payment_table)
         elements.append(Spacer(1, inch))
-        
-        # Footer
-        elements.append(Paragraph(invoice_cfg['footer_text'], self.styles['Footer']))
+
         
         # Build the PDF
         doc.build(elements)

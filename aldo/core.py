@@ -88,27 +88,26 @@ def view_summary(period):
         summary = storage.get_summary(period)
         
         # Print summary header
-        click.echo(f"\n{'='*60}")
+        click.echo(f"\n{'='*30}")
         click.echo(f"WORK SUMMARY FOR: {period.upper()}")
-        click.echo(f"{'='*60}")
-        
+        click.echo(f"{'='*30}")
+
+        click.echo("")
         if not summary:
             click.echo("No work hours recorded for this period.")
             return
-        
+
         # Print details
         total_hours = 0
         for date_str, entries in summary.items():
             day_hours = sum(entry['hours'] for entry in entries)
             total_hours += day_hours
-            click.echo(f"\n{date_str} - {day_hours:.2f} hours:")
-            for entry in entries:
-                click.echo(f"  • {entry['hours']:.2f} hours")
+            click.echo(f"{date_str}: {day_hours:.2f} hours")
         
         # Print total
-        click.echo(f"\n{'-'*60}")
+        click.echo(f"\n{'-'*30}")
         click.echo(f"TOTAL HOURS: {total_hours:.2f}")
-        click.echo(f"{'='*60}\n")
+        click.echo(f"{'='*30}\n")
         
     except Exception as e:
         click.echo(f"Error getting summary: {str(e)}", err=True)
@@ -116,16 +115,21 @@ def view_summary(period):
 
 @cli.command('generate-invoice')
 @click.argument('start_date', callback=validate_date)
-@click.argument('end_date', callback=validate_date)
+@click.argument('end_date', callback=validate_date, required=False)
 @click.option('--output', '-o', default='invoice.pdf', help='Output PDF filename')
 def generate_invoice(start_date, end_date, output):
     """
     Generate a PDF invoice for the specified date range.
 
     START_DATE: Start date in YYYY-MM-DD format
-    END_DATE: End date in YYYY-MM-DD format
+    END_DATE: Optional end date in YYYY-MM-DD format (defaults to today if not provided)
     """
     try:
+        # If end_date is not provided, use today's date
+        if end_date is None:
+            end_date = datetime.now().date()
+            click.echo(f"No end date provided. Using today ({end_date}) as end date.")
+        
         # Validate date range
         if start_date > end_date:
             raise click.BadParameter("Start date must be before end date")
@@ -142,6 +146,8 @@ def generate_invoice(start_date, end_date, output):
         output_path = invoice_generator.generate_invoice(start_date, end_date, entries, output)
         
         click.echo(f"Invoice generated successfully: {output_path}")
+        click.echo(f"Time period: {start_date} to {end_date}")
+        click.echo(f"Total hours: {sum(entry['hours'] for entry in entries):.2f}")
         
     except Exception as e:
         click.echo(f"Error generating invoice: {str(e)}", err=True)
