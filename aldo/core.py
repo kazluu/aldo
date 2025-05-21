@@ -77,12 +77,12 @@ def log_work(date, hours):
         sys.exit(1)
 
 @cli.command('summary')
-@click.argument('period', type=click.Choice(['day', 'month', 'year']))
+@click.argument('period', type=click.Choice(['week', 'month', 'year']))
 def view_summary(period):
     """
     View summary of hours worked for the specified time period.
 
-    PERIOD: One of: 'day', 'month', or 'year'
+    PERIOD: One of: 'week', 'month', or 'year'
     """
     try:
         summary = storage.get_summary(period)
@@ -115,21 +115,16 @@ def view_summary(period):
 
 @cli.command('generate-invoice')
 @click.argument('start_date', callback=validate_date)
-@click.argument('end_date', callback=validate_date, required=False)
+@click.argument('end_date', callback=validate_date)
 @click.option('--output', '-o', default='invoice.pdf', help='Output PDF filename')
 def generate_invoice(start_date, end_date, output):
     """
     Generate a PDF invoice for the specified date range.
 
     START_DATE: Start date in YYYY-MM-DD format
-    END_DATE: Optional end date in YYYY-MM-DD format (defaults to today if not provided)
+    END_DATE: End date in YYYY-MM-DD format
     """
     try:
-        # If end_date is not provided, use today's date
-        if end_date is None:
-            end_date = datetime.now().date()
-            click.echo(f"No end date provided. Using today ({end_date}) as end date.")
-        
         # Validate date range
         if start_date > end_date:
             raise click.BadParameter("Start date must be before end date")
@@ -146,8 +141,6 @@ def generate_invoice(start_date, end_date, output):
         output_path = invoice_generator.generate_invoice(start_date, end_date, entries, output)
         
         click.echo(f"Invoice generated successfully: {output_path}")
-        click.echo(f"Time period: {start_date} to {end_date}")
-        click.echo(f"Total hours: {sum(entry['hours'] for entry in entries):.2f}")
         
     except Exception as e:
         click.echo(f"Error generating invoice: {str(e)}", err=True)
