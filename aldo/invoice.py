@@ -150,7 +150,7 @@ class InvoiceGenerator:
         elements.append(Spacer(1, 0.1*inch))
         
         # Create work details table
-        work_data = [["Date", "Hours", "Amount"]]
+        work_data = [["Date", "Hours", "Unit Price", "Amount"]]
         
         # Group entries by date
         entries_by_date = {}
@@ -166,44 +166,24 @@ class InvoiceGenerator:
             for i, entry in enumerate(date_entries):
                 # Only show date for first entry of the day
                 date_display = date if i == 0 else ""
-                work_data.append([date_display, f"{entry['hours']:.2f}", entry['hours'] * hourly_rate])
-        
+                work_data.append([date_display, f"{entry['hours']:.2f}", f"${hourly_rate:.2f}", f"${entry['hours'] * hourly_rate:.2f}"])
+
         # Add total row
-        work_data.append(["", "", ""])
-        work_data.append(["TOTAL:", f"{total_hours:.2f}", ""])
+        work_data.append(["", "", "", ""])
+        work_data.append(["TOTAL:", f"{total_hours:.2f}", "", f"${total_amount:.2f}"])
         
-        work_table = Table(work_data, colWidths=[1*inch, 0.75*inch, 0.75*inch])
+        work_table = Table(work_data, colWidths=[3.75*inch, 1*inch, 1*inch, 1*inch], hAlign='LEFT')
         work_table.setStyle(TableStyle([
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),  # Header row
             ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
             ('GRID', (0, 0), (-1, -3), 0.25, colors.black),
-            ('FONTNAME', (0, -2), (0, -1), 'Helvetica-Bold'),  # Total row
-            ('FONTNAME', (1, -1), (1, -1), 'Helvetica-Bold'),  # Total amount
+            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),  # Total amount
             ('SPAN', (2, -2), (-1, -2)),  # Span empty row
             ('LINEABOVE', (0, -1), (-1, -1), 1, colors.black),  # Line above total
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),  # Left align all cells
         ]))
         elements.append(work_table)
         elements.append(Spacer(1, 0.5*inch))
-        
-        # Payment details
-        elements.append(Paragraph("PAYMENT DETAILS", self.styles['InvoiceHeading']))
-        elements.append(Spacer(1, 0.1*inch))
-        
-        payment_data = [
-            ["Hourly Rate:", f"${hourly_rate:.2f}"],
-            ["Total Amount Due:", f"${total_amount:.2f}"],
-        ]
-        payment_table = Table(payment_data, colWidths=[2*inch, 4*inch])
-        payment_table.setStyle(TableStyle([
-            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-            ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
-            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('BACKGROUND', (0, 1), (1, 1), colors.lightgrey),  # Highlight total
-        ]))
-        elements.append(payment_table)
-        elements.append(Spacer(1, inch))
-
         
         # Build the PDF
         doc.build(elements)
