@@ -181,6 +181,7 @@ class InvoiceGenerator:
             ('FONTNAME', (1, -1), (1, -1), 'Helvetica-Bold'),  # Total amount
             ('SPAN', (2, -2), (-1, -2)),  # Span empty row
             ('LINEABOVE', (0, -1), (-1, -1), 1, colors.black),  # Line above total
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),  # Left align all cells
         ]))
         elements.append(work_table)
         elements.append(Spacer(1, 0.5*inch))
