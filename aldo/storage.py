@@ -99,8 +99,8 @@ class WorkHoursStorage:
         today = datetime.now().date()
         
         # Determine date range based on period
-        if period == 'day':
-            start_date = today
+        if period == 'week':
+            start_date = today - timedelta(days=7)
             end_date = today
         elif period == 'month':
             start_date = today.replace(day=1)

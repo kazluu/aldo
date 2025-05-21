@@ -77,12 +77,12 @@ def log_work(date, hours):
         sys.exit(1)
 
 @cli.command('summary')
-@click.argument('period', type=click.Choice(['day', 'month', 'year']))
+@click.argument('period', type=click.Choice(['week', 'month', 'year']))
 def view_summary(period):
     """
     View summary of hours worked for the specified time period.
 
-    PERIOD: One of: 'day', 'month', or 'year'
+    PERIOD: One of: 'week', 'month', or 'year'
     """
     try:
         summary = storage.get_summary(period)
