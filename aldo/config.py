@@ -75,12 +75,23 @@ class Config:
         self._update_nested_dict(self.config, new_config)
         self.save_config()
     
-    def get_next_invoice_number(self):
-        """Get and increment the next invoice number"""
+    def get_next_invoice_number(self, increment=True):
+        """
+        Get the next invoice number
+        
+        Args:
+            increment: Whether to increment the counter (default: True)
+            
+        Returns:
+            str: The next invoice number with prefix
+        """
         current = self.config['invoice']['next_number']
-        # Increment by 10 instead of 1
-        self.config['invoice']['next_number'] += 10
-        self.save_config()
+        
+        if increment:
+            # Increment by 10 instead of 1
+            self.config['invoice']['next_number'] += 10
+            self.save_config()
+            
         return f"{self.config['invoice']['prefix']}{current:04d}"
         
     # No need for these methods anymore as they are handled by the storage module

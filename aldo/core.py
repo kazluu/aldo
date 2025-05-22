@@ -246,8 +246,9 @@ def generate_invoice(invoice_or_end_date, output):
             
             click.echo(f"Generating new invoice for period: {start_date} to {end_date}")
             
-            # Get next invoice number from config
-            invoice_number = config.get_next_invoice_number()
+            # Get next invoice number from config WITHOUT incrementing
+            # We only increment when an invoice is confirmed, not when generating
+            invoice_number = config.get_next_invoice_number(increment=False)
             # Extract numeric part for display
             numeric_invoice_number = int(invoice_number.replace(config.config['invoice']['prefix'], ''))
             full_invoice_number = invoice_number
