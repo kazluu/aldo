@@ -83,55 +83,8 @@ class Config:
         self.save_config()
         return f"{self.config['invoice']['prefix']}{current:04d}"
         
-    def get_last_confirmation_date(self):
-        """Get the date of the last confirmed invoice"""
-        return self.config['invoice'].get('last_confirmation_date')
-        
-    def get_last_confirmed_number(self):
-        """Get the number of the last confirmed invoice"""
-        return self.config['invoice'].get('last_confirmed_number')
-        
-    def set_end_date(self, invoice_number, confirmation_date=None):
-        """
-        Set the end date for an invoice's billing period
-        
-        Args:
-            invoice_number: The invoice number (without prefix)
-            confirmation_date: Optional date to use as the confirmation date (defaults to today)
-        
-        Returns:
-            bool: True if setting the end date was successful, False otherwise
-        """
-        from datetime import datetime
-        
-        # Extract the numeric part if the full invoice ID was provided
-        prefix = self.config['invoice']['prefix']
-        if isinstance(invoice_number, str) and invoice_number.startswith(prefix):
-            invoice_number = int(invoice_number[len(prefix):])
-        else:
-            try:
-                invoice_number = int(invoice_number)
-            except (ValueError, TypeError):
-                return False
-        
-        # Check if this is the expected invoice number
-        expected_number = self.config['invoice']['next_number'] - 10
-        if invoice_number != expected_number:
-            return False
-        
-        # If confirmation_date is not provided, use today's date
-        if confirmation_date is None:
-            confirmation_date_str = datetime.now().strftime('%Y-%m-%d')
-        else:
-            # Convert date object to string
-            confirmation_date_str = confirmation_date.strftime('%Y-%m-%d')
-        
-        # Update end date tracking
-        self.config['invoice']['last_confirmed_number'] = invoice_number
-        self.config['invoice']['last_confirmation_date'] = confirmation_date_str
-        self.save_config()
-        
-        return True
+    # No need for these methods anymore as they are handled by the storage module
+    # All confirmation data is now stored in aldo_data structure
     
     def _update_nested_dict(self, d, u):
         """Recursively update nested dictionary"""

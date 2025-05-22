@@ -6,21 +6,54 @@ import os
 import json
 from pathlib import Path
 from datetime import datetime, timedelta
+from collections import namedtuple
 import appdirs
 
+# Define the ConfirmedInvoice namedtuple
+ConfirmedInvoice = namedtuple('ConfirmedInvoice', ['invoice_number', 'start_date', 'end_date'])
+
 class WorkHoursStorage:
-    """Manages the storage of work hours data"""
+    """Manages the storage of work hours data and invoice tracking"""
     
     def __init__(self):
         """Initialize the storage with default paths"""
         # Use appdirs to get standard data locations
         self.data_dir = Path(appdirs.user_data_dir("aldo", "aldo"))
-        self.data_file = self.data_dir / 'work_hours.json'
-        self.data = {"entries": []}
+        self.data_file = self.data_dir / 'aldo_data.json'
+        
+        # Initialize with default structure
+        self.aldo_data = {
+            'last_confirmed_invoice_number': None,
+            'confirmed_invoices': {},
+            'work_entries': []
+        }
+        
+        # Ensure storage exists and load data
+        self.ensure_storage_exists()
         
         # Load data if it exists
         if self.data_file.exists():
             self.load_data()
+            
+        # Handle migration from old format if needed
+        self._migrate_data_if_needed()
+    
+    def _migrate_data_if_needed(self):
+        """Migrate data from old format to new format if needed"""
+        # Check for old work_hours.json file
+        old_file = self.data_dir / 'work_hours.json'
+        if old_file.exists():
+            try:
+                with open(old_file, 'r') as f:
+                    old_data = json.load(f)
+                
+                # Check if we have entries in old format but not in new format
+                if 'entries' in old_data and not self.aldo_data.get('work_entries'):
+                    self.aldo_data['work_entries'] = old_data['entries']
+                    self.save_data()
+                    # Keep the old file for backup
+            except:
+                pass  # Silently fail if we can't read the old file
     
     def ensure_storage_exists(self):
         """Ensure storage directory and file exist"""
@@ -35,7 +68,18 @@ class WorkHoursStorage:
         """Load data from file"""
         try:
             with open(self.data_file, 'r') as f:
-                self.data = json.load(f)
+                self.aldo_data = json.load(f)
+                
+            # For backward compatibility with older versions
+            # If the structure doesn't match our expected format, initialize it
+            if 'work_entries' not in self.aldo_data and 'entries' in self.aldo_data:
+                self.aldo_data['work_entries'] = self.aldo_data.pop('entries')
+                
+            if 'last_confirmed_invoice_number' not in self.aldo_data:
+                self.aldo_data['last_confirmed_invoice_number'] = None
+                
+            if 'confirmed_invoices' not in self.aldo_data:
+                self.aldo_data['confirmed_invoices'] = {}
         except Exception as e:
             raise Exception(f"Error loading data: {str(e)}")
     
@@ -43,7 +87,7 @@ class WorkHoursStorage:
         """Save data to file"""
         try:
             with open(self.data_file, 'w') as f:
-                json.dump(self.data, f, indent=2)
+                json.dump(self.aldo_data, f, indent=2)
         except Exception as e:
             raise Exception(f"Error saving data: {str(e)}")
     
@@ -55,15 +99,15 @@ class WorkHoursStorage:
         # Check if there's an existing entry for this date
         # If so, we'll remove it before adding the new one
         existing_entries = [
-            i for i, entry in enumerate(self.data["entries"])
+            i for i, entry in enumerate(self.aldo_data["work_entries"])
             if entry["date"] == date_str
         ]
         
         # If entry exists for this date, remove it and notify
         if existing_entries:
             for index in sorted(existing_entries, reverse=True):
-                old_entry = self.data["entries"][index]
-                del self.data["entries"][index]
+                old_entry = self.aldo_data["work_entries"][index]
+                del self.aldo_data["work_entries"][index]
                 print(f"Replaced previous entry: {old_entry['hours']} hours on {date_str}")
         
         # Create new entry
@@ -75,19 +119,33 @@ class WorkHoursStorage:
         }
         
         # Add to entries and save
-        self.data["entries"].append(entry)
+        self.aldo_data["work_entries"].append(entry)
         self.save_data()
         return entry
     
     def get_work_entries(self, start_date, end_date):
         """Get work entries within a date range"""
-        # Convert dates to strings for comparison
-        start_str = start_date.strftime('%Y-%m-%d')
-        end_str = end_date.strftime('%Y-%m-%d')
+        # Convert dates to strings for comparison, handling different input types
+        if hasattr(start_date, 'strftime'):
+            start_str = start_date.strftime('%Y-%m-%d')
+        elif isinstance(start_date, str):
+            start_str = start_date
+        else:
+            # Default to earliest date if we can't determine
+            earliest = self.get_earliest_entry_date()
+            start_str = earliest.strftime('%Y-%m-%d') if earliest else "1900-01-01"
+            
+        if hasattr(end_date, 'strftime'):
+            end_str = end_date.strftime('%Y-%m-%d')
+        elif isinstance(end_date, str):
+            end_str = end_date
+        else:
+            # Default to today if we can't determine
+            end_str = datetime.now().strftime('%Y-%m-%d')
         
         # Filter entries by date range
         filtered_entries = [
-            entry for entry in self.data["entries"]
+            entry for entry in self.aldo_data["work_entries"]
             if start_str <= entry["date"] <= end_str
         ]
         
@@ -137,12 +195,137 @@ class WorkHoursStorage:
         
     def get_earliest_entry_date(self):
         """Get the date of the earliest work entry"""
-        if not self.data["entries"]:
+        if not self.aldo_data["work_entries"]:
             return None
         
         # Find the earliest date in the entries
-        earliest_entry = min(self.data["entries"], key=lambda x: x["date"])
+        earliest_entry = min(self.aldo_data["work_entries"], key=lambda x: x["date"])
         
         # Convert the string date to a date object
         date_str = earliest_entry["date"]
         return datetime.strptime(date_str, '%Y-%m-%d').date()
+    
+    def confirm_invoice(self, invoice_number, config, confirmation_date=None):
+        """
+        Confirm an invoice was sent and store its information
+        
+        Args:
+            invoice_number: The invoice number to confirm (with or without prefix)
+            config: The configuration object to get invoice prefix
+            confirmation_date: The date when the invoice was confirmed (defaults to today)
+            
+        Returns:
+            bool: True if confirmation was successful, False otherwise
+        """
+        # Extract the numeric part if the full invoice ID was provided
+        prefix = config.config['invoice']['prefix']
+        if isinstance(invoice_number, str) and invoice_number.startswith(prefix):
+            invoice_number = int(invoice_number[len(prefix):])
+        else:
+            try:
+                invoice_number = int(invoice_number)
+            except (ValueError, TypeError):
+                return False
+        
+        # Format as string for storage
+        invoice_id = str(invoice_number)
+        
+        # If confirmation_date is not provided, use today's date
+        if confirmation_date is None:
+            confirmation_date_str = datetime.now().strftime('%Y-%m-%d')
+        else:
+            # Convert date object to string
+            confirmation_date_str = confirmation_date.strftime('%Y-%m-%d')
+            
+        # Determine start date for this invoice
+        if self.aldo_data['last_confirmed_invoice_number']:
+            # Get the last confirmed invoice
+            last_invoice = self.get_last_confirmed_invoice()
+            if last_invoice:
+                # Start date is the day after the end date of the last invoice
+                last_end_date = datetime.strptime(last_invoice.end_date, '%Y-%m-%d').date()
+                start_date_str = (last_end_date + timedelta(days=1)).strftime('%Y-%m-%d')
+            else:
+                # Fallback to earliest entry
+                earliest_date = self.get_earliest_entry_date()
+                if earliest_date:
+                    start_date_str = earliest_date.strftime('%Y-%m-%d')
+                else:
+                    start_date_str = confirmation_date_str
+        else:
+            # No previous invoice, start from earliest entry or confirmation date
+            earliest_date = self.get_earliest_entry_date()
+            if earliest_date:
+                start_date_str = earliest_date.strftime('%Y-%m-%d')
+            else:
+                start_date_str = confirmation_date_str
+        
+        # Store the invoice confirmation
+        self.aldo_data['confirmed_invoices'][invoice_id] = {
+            'invoice_number': invoice_id,
+            'start_date': start_date_str,
+            'end_date': confirmation_date_str
+        }
+        
+        # Update the last confirmed invoice number
+        self.aldo_data['last_confirmed_invoice_number'] = invoice_id
+        
+        # Save changes
+        self.save_data()
+        
+        return True
+    
+    def get_last_confirmed_invoice(self):
+        """
+        Get the last confirmed invoice
+        
+        Returns:
+            ConfirmedInvoice namedtuple or None if no invoice has been confirmed
+        """
+        invoice_id = self.aldo_data['last_confirmed_invoice_number']
+        if not invoice_id or invoice_id not in self.aldo_data['confirmed_invoices']:
+            return None
+            
+        invoice_data = self.aldo_data['confirmed_invoices'][invoice_id]
+        
+        return ConfirmedInvoice(
+            invoice_number=invoice_data['invoice_number'],
+            start_date=invoice_data['start_date'],
+            end_date=invoice_data['end_date']
+        )
+    
+    def get_invoice_by_number(self, invoice_number, config):
+        """
+        Get a confirmed invoice by its number
+        
+        Args:
+            invoice_number: The invoice number to look up (with or without prefix)
+            config: The configuration object to get invoice prefix
+            
+        Returns:
+            ConfirmedInvoice namedtuple or None if the invoice was not found
+        """
+        # Extract the numeric part if the full invoice ID was provided
+        prefix = config.config['invoice']['prefix']
+        if isinstance(invoice_number, str) and invoice_number.startswith(prefix):
+            invoice_number = int(invoice_number[len(prefix):])
+        else:
+            try:
+                invoice_number = int(invoice_number)
+            except (ValueError, TypeError):
+                return None
+        
+        # Format as string for lookup
+        invoice_id = str(invoice_number)
+        
+        # Check if this invoice exists in confirmed invoices
+        if invoice_id not in self.aldo_data['confirmed_invoices']:
+            return None
+            
+        invoice_data = self.aldo_data['confirmed_invoices'][invoice_id]
+        
+        return ConfirmedInvoice(
+            invoice_number=invoice_data['invoice_number'],
+            start_date=invoice_data['start_date'],
+            end_date=invoice_data['end_date']
+        )
