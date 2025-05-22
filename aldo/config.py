@@ -91,15 +91,16 @@ class Config:
         """Get the number of the last confirmed invoice"""
         return self.config['invoice'].get('last_confirmed_number')
         
-    def confirm_invoice(self, invoice_number):
+    def set_end_date(self, invoice_number, confirmation_date=None):
         """
-        Confirm that an invoice has been sent to the client
+        Set the end date for an invoice's billing period
         
         Args:
-            invoice_number: The invoice number to confirm (without prefix)
+            invoice_number: The invoice number (without prefix)
+            confirmation_date: Optional date to use as the confirmation date (defaults to today)
         
         Returns:
-            bool: True if confirmation was successful, False otherwise
+            bool: True if setting the end date was successful, False otherwise
         """
         from datetime import datetime
         
@@ -113,14 +114,21 @@ class Config:
             except (ValueError, TypeError):
                 return False
         
-        # Check if this is the expected invoice number to confirm
+        # Check if this is the expected invoice number
         expected_number = self.config['invoice']['next_number'] - 10
         if invoice_number != expected_number:
             return False
         
-        # Update confirmation tracking
+        # If confirmation_date is not provided, use today's date
+        if confirmation_date is None:
+            confirmation_date_str = datetime.now().strftime('%Y-%m-%d')
+        else:
+            # Convert date object to string
+            confirmation_date_str = confirmation_date.strftime('%Y-%m-%d')
+        
+        # Update end date tracking
         self.config['invoice']['last_confirmed_number'] = invoice_number
-        self.config['invoice']['last_confirmation_date'] = datetime.now().strftime('%Y-%m-%d')
+        self.config['invoice']['last_confirmation_date'] = confirmation_date_str
         self.save_config()
         
         return True

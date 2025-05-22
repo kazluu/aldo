@@ -184,42 +184,49 @@ def generate_invoice(start_date, end_date, output):
         click.echo(f"Invoice #{full_invoice_number} generated successfully: {output_path}")
         click.echo(f"Time period: {start_date} to {end_date}")
         click.echo(f"Total hours: {sum(entry['hours'] for entry in entries):.2f}")
-        click.echo(f"To confirm this invoice has been sent, run: aldo confirm {invoice_number}")
+        click.echo(f"To set the end date for this billing period, run: aldo set-end-date {invoice_number}")
         
     except Exception as e:
         click.echo(f"Error generating invoice: {str(e)}", err=True)
         sys.exit(1)
 
-@cli.command('confirm')
+@cli.command('set-end-date')
 @click.argument('invoice_number', required=True)
-def confirm_invoice(invoice_number):
+@click.argument('confirmation_date', callback=validate_date, required=False)
+def set_end_date(invoice_number, confirmation_date):
     """
-    Confirm that an invoice has been sent to the client.
+    Set the end date for the current billing period.
     
     INVOICE_NUMBER: The invoice number to confirm (e.g., 1000 or INV-1000)
+    CONFIRMATION_DATE: Optional date to use as the confirmation date (defaults to today)
     
     This command:
     1. Marks the invoice as confirmed
-    2. Records the confirmation date
+    2. Records the confirmation date (today if not specified)
     3. This date becomes the starting point for the next automatic invoice
     
     Only the latest generated invoice can be confirmed.
     """
     try:
+        # If confirmation_date is not provided, use today's date
+        if confirmation_date is None:
+            confirmation_date = datetime.now().date()
+        
         expected_number = config.config['invoice']['next_number'] - 10
         prefix = config.config['invoice']['prefix']
         expected_id = f"{prefix}{expected_number:04d}"
         
-        # Attempt to confirm
-        success = config.confirm_invoice(invoice_number)
+        # Attempt to confirm with the specified date
+        success = config.set_end_date(invoice_number, confirmation_date)
         
         if success:
-            confirmation_date = config.config['invoice']['last_confirmation_date']
-            click.echo(f"Invoice #{expected_id} confirmed on {confirmation_date}.")
-            click.echo(f"Next invoice will be #{prefix}{config.config['invoice']['next_number']:04d}.")
+            confirmation_date_str = confirmation_date.strftime('%Y-%m-%d')
+            click.echo(f"Invoice #{expected_id} end date set to {confirmation_date_str}.")
+            click.echo(f"Next invoice will start from {confirmation_date_str}.")
+            click.echo(f"Next invoice number will be #{prefix}{config.config['invoice']['next_number']:04d}.")
         else:
-            click.echo(f"Error: Only the latest invoice (#{expected_id}) can be confirmed.")
+            click.echo(f"Error: Only the latest invoice (#{expected_id}) can have its end date set.")
             
     except Exception as e:
-        click.echo(f"Error confirming invoice: {str(e)}", err=True)
+        click.echo(f"Error setting end date: {str(e)}", err=True)
         sys.exit(1)
