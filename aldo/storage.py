@@ -134,3 +134,15 @@ class WorkHoursStorage:
     def get_total_hours(self, entries):
         """Calculate total hours from a list of work entries"""
         return sum(entry["hours"] for entry in entries)
+        
+    def get_earliest_entry_date(self):
+        """Get the date of the earliest work entry"""
+        if not self.data["entries"]:
+            return None
+        
+        # Find the earliest date in the entries
+        earliest_entry = min(self.data["entries"], key=lambda x: x["date"])
+        
+        # Convert the string date to a date object
+        date_str = earliest_entry["date"]
+        return datetime.strptime(date_str, '%Y-%m-%d').date()

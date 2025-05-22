@@ -1,0 +1,82 @@
+# Aldo Invoice Tracking and Confirmation Feature
+
+## Overview
+Add an automatic invoice generation system to the existing Aldo CLI app that tracks which work periods have been invoiced and provides a seamless workflow for generating invoices without manual date entry.
+
+## New Features
+
+### 1. Enhanced Invoice Generation
+Modify the existing `aldo generate-invoice` command to support two modes:
+
+**Manual Mode (existing behavior):**
+```
+aldo generate-invoice [START_DATE] [END_DATE]
+```
+
+**Automatic Mode (new behavior):**
+```
+aldo generate-invoice
+```
+- When called without arguments, automatically generate an invoice for all logged work since the last confirmed invoice
+- Use the confirmation date from the most recent `aldo confirm` command as the starting point
+- If no previous confirmation exists, include all logged work from the beginning
+
+### 2. New Invoice Confirmation Command
+Add a new command to track which invoices have been sent/confirmed:
+
+```
+aldo confirm [INVOICE_NUMBER]
+```
+
+**Command behavior:**
+1. **Validation**: Verify that the provided invoice number matches the next expected invoice number in sequence
+   - If numbers match: Proceed with confirmation
+   - If numbers don't match: Display error message stating "Only the latest invoice can be confirmed" with the expected number
+
+2. **State Updates**: When confirmation is successful:
+   - Increment the next invoice number counter (by 10, following existing logic)
+   - Store the current date as the "last confirmation date"
+   - This date becomes the cutoff point for future automatic invoice generation
+
+### 3. Invoice Tracking System
+Implement persistent storage to track:
+- Last confirmed invoice number
+- Date of last invoice confirmation
+- Next invoice number to be generated
+
+**Data Requirements:**
+- Track confirmation dates to determine work period boundaries
+- Maintain invoice number sequence integrity
+- Store this information in the existing data persistence system
+
+## Implementation Notes
+- Ensure backward compatibility with existing manual invoice generation
+- The automatic mode should only include work logged after the last confirmation date
+- If using automatic mode and no work exists since last confirmation, display appropriate message
+- Update help documentation to explain both manual and automatic invoice generation modes
+
+## Example Workflow
+```bash
+# Log some work
+aldo log today 8
+aldo log yesterday 6
+
+# Generate first invoice (includes all work)
+aldo generate-invoice
+# → Generates invoice #1000
+
+# Confirm the invoice was sent
+aldo confirm 1000
+# → Sets cutoff date to today, next invoice will be #1010
+
+# Log more work
+aldo log tomorrow 4
+
+# Generate next invoice automatically
+aldo generate-invoice
+# → Generates invoice #1010 with only work since confirmation
+
+# Confirm second invoice
+aldo confirm 1010
+# → Updates cutoff date, next invoice will be #1020
+```

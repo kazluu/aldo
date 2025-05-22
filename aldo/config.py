@@ -17,7 +17,9 @@ DEFAULT_CONFIG = {
     "invoice": {
         "prefix": "INV-",
         "next_number": 1000,
-        "footer_text": "Thank you for your business!"
+        "footer_text": "Thank you for your business!",
+        "last_confirmed_number": None,
+        "last_confirmation_date": None
     }
 }
 
@@ -80,6 +82,48 @@ class Config:
         self.config['invoice']['next_number'] += 10
         self.save_config()
         return f"{self.config['invoice']['prefix']}{current:04d}"
+        
+    def get_last_confirmation_date(self):
+        """Get the date of the last confirmed invoice"""
+        return self.config['invoice'].get('last_confirmation_date')
+        
+    def get_last_confirmed_number(self):
+        """Get the number of the last confirmed invoice"""
+        return self.config['invoice'].get('last_confirmed_number')
+        
+    def confirm_invoice(self, invoice_number):
+        """
+        Confirm that an invoice has been sent to the client
+        
+        Args:
+            invoice_number: The invoice number to confirm (without prefix)
+        
+        Returns:
+            bool: True if confirmation was successful, False otherwise
+        """
+        from datetime import datetime
+        
+        # Extract the numeric part if the full invoice ID was provided
+        prefix = self.config['invoice']['prefix']
+        if isinstance(invoice_number, str) and invoice_number.startswith(prefix):
+            invoice_number = int(invoice_number[len(prefix):])
+        else:
+            try:
+                invoice_number = int(invoice_number)
+            except (ValueError, TypeError):
+                return False
+        
+        # Check if this is the expected invoice number to confirm
+        expected_number = self.config['invoice']['next_number'] - 10
+        if invoice_number != expected_number:
+            return False
+        
+        # Update confirmation tracking
+        self.config['invoice']['last_confirmed_number'] = invoice_number
+        self.config['invoice']['last_confirmation_date'] = datetime.now().strftime('%Y-%m-%d')
+        self.save_config()
+        
+        return True
     
     def _update_nested_dict(self, d, u):
         """Recursively update nested dictionary"""

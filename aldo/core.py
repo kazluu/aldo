@@ -114,20 +114,51 @@ def view_summary(period):
         sys.exit(1)
 
 @cli.command('generate-invoice')
-@click.argument('start_date', callback=validate_date)
+@click.argument('start_date', callback=validate_date, required=False)
 @click.argument('end_date', callback=validate_date, required=False)
 @click.option('--output', '-o', default='invoice.pdf', help='Output PDF filename')
 def generate_invoice(start_date, end_date, output):
     """
     Generate a PDF invoice for the specified date range.
 
-    START_DATE: Start date in YYYY-MM-DD format
-    END_DATE: Optional end date in YYYY-MM-DD format (defaults to today if not provided)
+    Supports two modes:
+    
+    1. Automatic mode (no arguments):
+       - Generates invoice for all work since the last confirmed invoice
+       - Example: aldo generate-invoice
+    
+    2. Manual mode (with date arguments):
+       - START_DATE: Start date in YYYY-MM-DD format
+       - END_DATE: Optional end date in YYYY-MM-DD format (defaults to today)
+       - Example: aldo generate-invoice 2025-05-01 2025-05-31
     """
     try:
-        # If end_date is not provided, use today's date
-        if end_date is None:
-            end_date = datetime.now().date()
+        today = datetime.now().date()
+        
+        # AUTOMATIC MODE: No dates provided
+        if start_date is None:
+            last_confirmation_date = config.get_last_confirmation_date()
+            
+            if last_confirmation_date:
+                # Convert string date to date object
+                start_date = datetime.strptime(last_confirmation_date, '%Y-%m-%d').date()
+                click.echo(f"Using last confirmation date ({last_confirmation_date}) as start date.")
+            else:
+                # If no previous confirmation, use all entries
+                click.echo("No previous invoice confirmation found. Including all work entries.")
+                # Get the earliest work entry date
+                earliest_date = storage.get_earliest_entry_date()
+                if not earliest_date:
+                    click.echo("No work hours recorded. Cannot generate invoice.")
+                    return
+                start_date = earliest_date
+                
+            end_date = today
+            click.echo(f"Generating invoice for period: {start_date} to {end_date}")
+        
+        # MANUAL MODE: Start date provided but no end date
+        elif end_date is None:
+            end_date = today
             click.echo(f"No end date provided. Using today ({end_date}) as end date.")
         
         # Validate date range
@@ -145,10 +176,50 @@ def generate_invoice(start_date, end_date, output):
         invoice_generator = InvoiceGenerator(config, storage)
         output_path = invoice_generator.generate_invoice(start_date, end_date, entries, output)
         
-        click.echo(f"Invoice generated successfully: {output_path}")
+        # Display invoice information
+        invoice_number = config.config['invoice']['next_number'] - 10
+        prefix = config.config['invoice']['prefix']
+        full_invoice_number = f"{prefix}{invoice_number:04d}"
+        
+        click.echo(f"Invoice #{full_invoice_number} generated successfully: {output_path}")
         click.echo(f"Time period: {start_date} to {end_date}")
         click.echo(f"Total hours: {sum(entry['hours'] for entry in entries):.2f}")
+        click.echo(f"To confirm this invoice has been sent, run: aldo confirm {invoice_number}")
         
     except Exception as e:
         click.echo(f"Error generating invoice: {str(e)}", err=True)
+        sys.exit(1)
+
+@cli.command('confirm')
+@click.argument('invoice_number', required=True)
+def confirm_invoice(invoice_number):
+    """
+    Confirm that an invoice has been sent to the client.
+    
+    INVOICE_NUMBER: The invoice number to confirm (e.g., 1000 or INV-1000)
+    
+    This command:
+    1. Marks the invoice as confirmed
+    2. Records the confirmation date
+    3. This date becomes the starting point for the next automatic invoice
+    
+    Only the latest generated invoice can be confirmed.
+    """
+    try:
+        expected_number = config.config['invoice']['next_number'] - 10
+        prefix = config.config['invoice']['prefix']
+        expected_id = f"{prefix}{expected_number:04d}"
+        
+        # Attempt to confirm
+        success = config.confirm_invoice(invoice_number)
+        
+        if success:
+            confirmation_date = config.config['invoice']['last_confirmation_date']
+            click.echo(f"Invoice #{expected_id} confirmed on {confirmation_date}.")
+            click.echo(f"Next invoice will be #{prefix}{config.config['invoice']['next_number']:04d}.")
+        else:
+            click.echo(f"Error: Only the latest invoice (#{expected_id}) can be confirmed.")
+            
+    except Exception as e:
+        click.echo(f"Error confirming invoice: {str(e)}", err=True)
         sys.exit(1)
