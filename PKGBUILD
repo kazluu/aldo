@@ -1,7 +1,7 @@
 # Maintainer: Your Name <your.email@example.com>
 
 pkgname=aldo
-pkgver=1.0.0
+pkgver=1.0.5
 pkgrel=1
 pkgdesc="Work Hours Tracker and Invoice Generator for Freelancers"
 arch=('any')

@@ -5,6 +5,7 @@ Version Update Utility for Aldo
 This script updates the version number in all relevant files:
 - aldo/__init__.py
 - pyproject.toml
+- PKGBUILD
 """
 
 import sys
@@ -55,6 +56,28 @@ def update_pyproject_toml(new_version):
         print(f"No changes needed in {toml_file}")
         return False
 
+def update_pkgbuild(new_version):
+    """Update version in PKGBUILD"""
+    pkgbuild_file = Path("PKGBUILD")
+    if not pkgbuild_file.exists():
+        print(f"Error: {pkgbuild_file} not found")
+        return False
+    
+    content = pkgbuild_file.read_text()
+    new_content = re.sub(
+        r'pkgver=[^\n]*',
+        f'pkgver={new_version}',
+        content
+    )
+    
+    if content != new_content:
+        pkgbuild_file.write_text(new_content)
+        print(f"Updated {pkgbuild_file}")
+        return True
+    else:
+        print(f"No changes needed in {pkgbuild_file}")
+        return False
+
 def main():
     if len(sys.argv) != 2:
         print("Usage: python update_version.py <new_version>")
@@ -73,12 +96,17 @@ def main():
     changes_made = False
     changes_made |= update_init_py(new_version)
     changes_made |= update_pyproject_toml(new_version)
+    changes_made |= update_pkgbuild(new_version)
     
     if changes_made:
         print(f"\nVersion successfully updated to {new_version}")
         print("The following files now use imported versions:")
         print("- aldo/core.py (imports from __init__.py)")
         print("- setup.py (imports from __init__.py)")
+        print("Files directly updated:")
+        print("- aldo/__init__.py")
+        print("- pyproject.toml") 
+        print("- PKGBUILD")
     else:
         print("No changes were needed.")
 

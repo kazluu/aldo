@@ -208,7 +208,7 @@ def _ensure_date_object(date_value, default_date=None):
     try:
         if isinstance(date_value, str):
             return datetime.strptime(date_value, '%Y-%m-%d').date()
-        return default_datet
+        return default_date
     except (ValueError, TypeError):
         return default_date
 
