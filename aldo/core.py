@@ -46,7 +46,7 @@ def validate_hours(ctx, param, value):
     return value
 
 @click.group()
-@click.version_option(version='1.0.2')
+@click.version_option(version='1.0.3')
 def cli():
     """
     Aldo - Work Hours Tracker and Invoice Generator for Freelancers
