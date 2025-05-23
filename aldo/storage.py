@@ -182,7 +182,7 @@ class WorkHoursStorage:
             return int(last_confirmed['invoice_number']) + 10
         else:
             # No confirmed invoices yet, start from default base number
-            return 10
+            return 391
     
     def store_unconfirmed_invoice(self, invoice_number, start_date, end_date, config=None):
         """
