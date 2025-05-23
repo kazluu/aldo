@@ -83,24 +83,60 @@ def log_work(date, hours, description=""):
         sys.exit(1)
 
 @cli.command('summary')
-@click.argument('period', type=click.Choice(['week', 'month', 'year']))
+@click.argument('period', type=click.Choice(['week', 'month', 'year']), required=False)
 def view_summary(period):
     """
     View summary of hours worked for the specified time period.
 
-    PERIOD: One of: 'week', 'month', or 'year'
+    PERIOD: One of: 'week', 'month', or 'year'. If not provided, shows all entries since last confirmed invoice.
     """
     try:
-        summary = storage.get_summary(period)
+        if period:
+            # Existing logic for specific periods
+            summary = storage.get_summary(period)
+            title = period.upper()
+        else:
+            # New logic for entries since last confirmed invoice
+            last_confirmed = storage.get_last_confirmed_invoice()
+            if not last_confirmed:
+                # No confirmed invoice, get all entries
+                earliest_date = storage.get_earliest_entry_date()
+                if not earliest_date:
+                    click.echo("No work hours recorded.")
+                    return
+                start_date = earliest_date
+                end_date = datetime.now().date()
+                title = "ALL ENTRIES"
+            else:
+                # Start from day after last confirmed invoice
+                last_end_date = datetime.strptime(last_confirmed.end_date, '%Y-%m-%d').date()
+                start_date = last_end_date + timedelta(days=1)
+                end_date = datetime.now().date()
+                title = f"SINCE LAST INVOICE ({last_confirmed.end_date})"
+            
+            # Get entries and convert to summary format
+            entries = storage.get_work_entries(start_date, end_date)
+            summary = {}
+            for entry in entries:
+                date = entry["date"]
+                if date not in summary:
+                    summary[date] = []
+                summary[date].append({
+                    "hours": entry["hours"],
+                    "description": entry["description"]
+                })
         
         # Print summary header
         click.echo(f"\n{'='*30}")
-        click.echo(f"WORK SUMMARY FOR: {period.upper()}")
+        click.echo(f"WORK SUMMARY FOR: {title}")
         click.echo(f"{'='*30}")
 
         click.echo("")
         if not summary:
-            click.echo("No work hours recorded for this period.")
+            if period:
+                click.echo("No work hours recorded for this period.")
+            else:
+                click.echo("No work hours recorded since last invoice.")
             return
 
         # Print details
