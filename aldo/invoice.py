@@ -65,22 +65,18 @@ class InvoiceGenerator:
             alignment=1  # Center
         ))
     
-    def generate_invoice(self, start_date, end_date, entries, output_filename):
+    def generate_invoice(self, invoice_number, start_date, end_date, entries, output_filename):
         """Generate a PDF invoice for the given date range and entries"""
         # Get config data
         cfg = self.config.get_config()
         company = cfg.get('company', {'name': 'Your Company Name'})
         client = cfg.get('client', {'name': 'Client Name', 'address': 'Client Address'})
         payment = cfg.get('payment', {'hourly_rate': 50.00})
-        invoice_cfg = cfg.get('invoice', {'footer_text': 'Thank you for your business!'})
         
         # Calculate total amount
         total_hours = self.storage.get_total_hours(entries)
         hourly_rate = payment['hourly_rate']
         total_amount = total_hours * hourly_rate
-        
-        # Get invoice number
-        invoice_number = self.config.get_next_invoice_number()
         
         # Prepare invoice date and due date (30 days from now)
         invoice_date = datetime.now().strftime('%Y-%m-%d')

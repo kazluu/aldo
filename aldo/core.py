@@ -7,6 +7,7 @@ A CLI application for freelancers to track their hours and generate invoices.
 import os
 import sys
 import click
+import traceback
 from datetime import datetime, timedelta
 from aldo.storage import WorkHoursStorage
 from aldo.config import Config
@@ -118,6 +119,62 @@ def view_summary(period):
         click.echo(f"Error getting summary: {str(e)}", err=True)
         sys.exit(1)
 
+def _parse_invoice_input(input_value):
+    """Parse input as either invoice number or date and return appropriate values"""
+    today = datetime.now().date()
+    is_invoice_number = False
+    invoice_number = None
+    
+    if input_value is None:
+        return is_invoice_number, invoice_number, today
+    
+    # Try to parse as invoice number if it's a string
+    if isinstance(input_value, str):
+        try:
+            # Check if it might be a full invoice ID with prefix
+            prefix = config.config['invoice']['prefix']
+            if input_value.startswith(prefix):
+                invoice_number = int(input_value[len(prefix):])
+                is_invoice_number = True
+            else:
+                # Try to parse as integer
+                invoice_number = int(input_value)
+                is_invoice_number = True
+        except (ValueError, TypeError):
+            # Not an invoice number, try to parse as date
+            date_aliases = {
+                "today": today,
+                "yesterday": today - timedelta(days=1),
+                "tomorrow": today + timedelta(days=1),
+                "daybefore": today - timedelta(days=2)
+            }
+            
+            if input_value in date_aliases:
+                return is_invoice_number, invoice_number, date_aliases[input_value]
+            
+            try:
+                # Handle regular date format
+                return is_invoice_number, invoice_number, datetime.strptime(input_value, '%Y-%m-%d').date()
+            except ValueError:
+                raise click.BadParameter('Date must be in YYYY-MM-DD format or one of: today, yesterday, tomorrow, daybefore')
+    
+    return is_invoice_number, invoice_number, input_value
+
+def _ensure_date_object(date_value, default_date=None):
+    """Ensure we have a proper date object"""
+    if default_date is None:
+        default_date = datetime.now().date()
+        
+    if hasattr(date_value, 'strftime'):
+        return date_value
+    
+    try:
+        if isinstance(date_value, str):
+            return datetime.strptime(date_value, '%Y-%m-%d').date()
+        return default_date
+    except (ValueError, TypeError):
+        return default_date
+
 @cli.command('generate-invoice')
 @click.argument('invoice_or_end_date', required=False)
 @click.option('--output', '-o', default='invoice.pdf', help='Output PDF filename')
@@ -140,224 +197,120 @@ def generate_invoice(invoice_or_end_date, output):
     """
     try:
         today = datetime.now().date()
+        is_invoice_number, invoice_number, parsed_date = _parse_invoice_input(invoice_or_end_date)
         
-        # Check if the argument is an invoice number or a date
-        is_invoice_number = False
-        invoice_number = None
-        
-        if invoice_or_end_date is not None:
-            # Try to parse as invoice number if it's a string
-            if isinstance(invoice_or_end_date, str):
-                try:
-                    # Check if it might be a full invoice ID with prefix
-                    prefix = config.config['invoice']['prefix']
-                    if invoice_or_end_date.startswith(prefix):
-                        invoice_number = int(invoice_or_end_date[len(prefix):])
-                        is_invoice_number = True
-                    else:
-                        # Try to parse as integer
-                        invoice_number = int(invoice_or_end_date)
-                        is_invoice_number = True
-                except (ValueError, TypeError):
-                    # Not an invoice number, try to parse as date
-                    try:
-                        # Handle date aliases
-                        if invoice_or_end_date == "today":
-                            invoice_or_end_date = today
-                        elif invoice_or_end_date == "yesterday":
-                            invoice_or_end_date = today - timedelta(days=1)
-                        elif invoice_or_end_date == "tomorrow":
-                            invoice_or_end_date = today + timedelta(days=1)
-                        elif invoice_or_end_date == "daybefore":
-                            invoice_or_end_date = today - timedelta(days=2)
-                        else:
-                            # Handle regular date format
-                            invoice_or_end_date = datetime.strptime(invoice_or_end_date, '%Y-%m-%d').date()
-                    except ValueError:
-                        raise click.BadParameter('Date must be in YYYY-MM-DD format or one of: today, yesterday, tomorrow, daybefore')
-        
-        # REGENERATE EXISTING INVOICE: invoice number provided
+        # Handle regenerating existing invoice
         if is_invoice_number:
-            # Look up the confirmed invoice
             confirmed_invoice = storage.get_invoice_by_number(invoice_number, config)
-            
             if not confirmed_invoice:
                 click.echo(f"Error: Invoice #{invoice_number} not found in confirmed invoices.")
                 return
-            
-            # Get the start and end dates from the confirmed invoice
+                
             start_date = datetime.strptime(confirmed_invoice.start_date, '%Y-%m-%d').date()
             end_date = datetime.strptime(confirmed_invoice.end_date, '%Y-%m-%d').date()
-            
-            click.echo(f"Regenerating confirmed invoice #{invoice_number}")
-            click.echo(f"Period: {start_date} to {end_date}")
-            
-            # Format invoice number with prefix for display
             full_invoice_number = f"{config.config['invoice']['prefix']}{invoice_number:04d}"
             
-        # GENERATE NEW INVOICE: end date provided or no arguments
+            click.echo(f"Regenerating confirmed invoice #{invoice_number}")
+        
+        # Handle generating new invoice    
         else:
-            # Default to today if no end date is provided
-            if invoice_or_end_date is None:
-                end_date = today
-            else:
-                # If a date object was provided, use it directly
-                if hasattr(invoice_or_end_date, 'strftime'):
-                    end_date = invoice_or_end_date
-                else:
-                    # Try to parse as date if it's a string
-                    try:
-                        end_date = datetime.strptime(invoice_or_end_date, '%Y-%m-%d').date()
-                    except (ValueError, TypeError):
-                        end_date = today
-            
-            # Get the last confirmed invoice to determine start date
+            end_date = _ensure_date_object(parsed_date, today)
             last_invoice = storage.get_last_confirmed_invoice()
-            
             if last_invoice:
-                # Start date is the day after the end date of the last invoice
                 last_end_date = datetime.strptime(last_invoice.end_date, '%Y-%m-%d').date()
                 start_date = last_end_date + timedelta(days=1)
                 
-                # For new invoices after confirmation, make sure end date is after start date
-                end_date = datetime.now().date()
+                # Check for invalid date range when user specified an end date
+                if invoice_or_end_date is not None and start_date > end_date:
+                    click.echo(f"Error: Invalid date range. Next invoice must start from {start_date} (day after last invoice ended).")
+                    click.echo(f"The specified end date {end_date} is before the required start date.")
+                    click.echo(f"Please use a date on or after {start_date} as the end date.")
+                    return
                 
-                # If the start date is today or in the future, we need an end date in the future
-                if start_date >= today:
-                    end_date = start_date + timedelta(days=7)  # Look ahead a week by default
-                
-                click.echo(f"Using day after last confirmed invoice as start date: {start_date}")
-                click.echo(f"End date: {end_date}")
-                
-                # Pre-check if we have entries in this period
-                test_entries = storage.get_work_entries(start_date, end_date)
-                if not test_entries:
+                # Only adjust end_date if no specific date was provided and start_date is in the future
+                if invoice_or_end_date is None and start_date >= today:
+                    end_date = start_date + timedelta(days=7)
+                    
+                # Check for entries
+                if not storage.get_work_entries(start_date, end_date):
                     click.echo(f"No work hours recorded between {start_date} and {end_date}.")
-                    click.echo("Cannot generate an invoice for this period.")
                     return
             else:
-                # No previous invoice, start from earliest entry or today
-                earliest_date = storage.get_earliest_entry_date()
-                if not earliest_date:
+                # No previous invoice
+                start_date = storage.get_earliest_entry_date()
+                if not start_date:
                     click.echo("No work hours recorded. Cannot generate invoice.")
                     return
-                start_date = earliest_date
-                click.echo("No previous confirmed invoice. Using earliest entry date as start date.")
             
-            click.echo(f"Generating new invoice for period: {start_date} to {end_date}")
+            # Get invoice number
+            full_invoice_number = f"{config.config['invoice']['prefix']}{storage.get_next_invoice_number()}"
             
-            # Get next invoice number from config WITHOUT incrementing
-            # We only increment when an invoice is confirmed, not when generating
-            invoice_number = config.get_next_invoice_number(increment=False)
-            # Extract numeric part for display
-            numeric_invoice_number = int(invoice_number.replace(config.config['invoice']['prefix'], ''))
-            full_invoice_number = invoice_number
+        # Ensure dates are valid and get entries
+        start_date = _ensure_date_object(start_date)
+        end_date = _ensure_date_object(end_date)
         
-        # Make sure we have proper date objects before continuing
-        if hasattr(start_date, 'strftime'):
-            start_date_str = start_date.strftime('%Y-%m-%d')
-        else:
-            # Try to convert to date if it's a string
-            try:
-                if isinstance(start_date, str):
-                    start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
-                    start_date_str = start_date.strftime('%Y-%m-%d')
-                else:
-                    # Default to earliest entry date if we can't parse
-                    start_date = storage.get_earliest_entry_date() or datetime.now().date()
-                    start_date_str = start_date.strftime('%Y-%m-%d')
-            except (ValueError, TypeError):
-                start_date = datetime.now().date()
-                start_date_str = start_date.strftime('%Y-%m-%d')
-        
-        if hasattr(end_date, 'strftime'):
-            end_date_str = end_date.strftime('%Y-%m-%d')
-        else:
-            # Try to convert to date if it's a string
-            try:
-                if isinstance(end_date, str):
-                    end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
-                    end_date_str = end_date.strftime('%Y-%m-%d')
-                else:
-                    # Default to today if we can't parse
-                    end_date = datetime.now().date()
-                    end_date_str = end_date.strftime('%Y-%m-%d')
-            except (ValueError, TypeError):
-                end_date = datetime.now().date()
-                end_date_str = end_date.strftime('%Y-%m-%d')
-        
-        # Now we can safely compare the dates
-        if start_date_str > end_date_str:
-            click.echo("Warning: Start date is after end date. Using today as end date.")
-            end_date = datetime.now().date()
-        
-        # Get work entries for the date range
         entries = storage.get_work_entries(start_date, end_date)
-        
         if not entries:
-            click.echo("No work hours recorded for this period. Cannot generate invoice.")
+            click.echo(f"No work hours recorded between {start_date} and {end_date}.")
             return
-        
-        # Generate invoice
+            
+        # Generate the invoice
         invoice_generator = InvoiceGenerator(config, storage)
-        output_path = invoice_generator.generate_invoice(start_date, end_date, entries, output)
+        output_path = invoice_generator.generate_invoice(full_invoice_number, start_date, end_date, entries, output)
         
-        # Display invoice information
-        click.echo(f"Invoice #{full_invoice_number} generated successfully: {output_path}")
-        click.echo(f"Time period: {start_date} to {end_date}")
-        click.echo(f"Total hours: {sum(entry['hours'] for entry in entries):.2f}")
-        
-        # Only show the confirm message for new invoices, not regenerated ones
+        # Store unconfirmed invoice for new invoices only (not for regenerating existing ones)
         if not is_invoice_number:
-            # Extract just the number part for the command example
+            # Extract the numeric part of the invoice number
+            storage.store_unconfirmed_invoice(full_invoice_number, start_date, end_date, config)
+        
+        # Show summary
+        click.echo(f"Invoice #{full_invoice_number} generated successfully: {output_path}")
+        
+        # Show confirm prompt for new invoices
+        if not is_invoice_number:
             numeric_part = full_invoice_number.replace(config.config['invoice']['prefix'], '')
             click.echo(f"To confirm this invoice has been sent, run: aldo confirm {numeric_part}")
-        
+            
     except Exception as e:
         click.echo(f"Error generating invoice: {str(e)}", err=True)
+        click.echo(traceback.format_exc())
         sys.exit(1)
 
 @cli.command('confirm')
 @click.argument('invoice_number', required=True)
-@click.argument('confirmation_date', callback=validate_date, required=False)
-def confirm_invoice(invoice_number, confirmation_date):
+def confirm_invoice(invoice_number):
     """
     Confirm that an invoice has been sent to the client.
     
     INVOICE_NUMBER: The invoice number to confirm (e.g., 1000 or INV-1000)
-    CONFIRMATION_DATE: Optional date to use as the confirmation date (defaults to today)
     
     This command:
     1. Marks the invoice as confirmed
-    2. Records the confirmation date (today if not specified)
-    3. This date becomes the starting point for the next automatic invoice
+    2. Uses the original invoice end date as the confirmation date
+    3. This end date becomes the starting point for the next automatic invoice
     
-    The invoice being confirmed must be the successor of the last confirmed invoice.
+    The invoice being confirmed must match the last unconfirmed invoice.
     """
     try:
-        # If confirmation_date is not provided, use today's date
-        if confirmation_date is None:
-            confirmation_date = datetime.now().date()
-        
         # Format the expected invoice number for display
         prefix = config.config['invoice']['prefix']
         
-        # Attempt to confirm with the specified date
-        success = storage.confirm_invoice(invoice_number, config, confirmation_date)
+        # Attempt to confirm the invoice
+        success = storage.confirm_invoice(invoice_number, config)
         
         if success:
             # Get the confirmed invoice details
-            invoice_id = str(invoice_number).replace(prefix, '')
+            confirmed_invoice = storage.get_last_confirmed_invoice()
             
             # Format for display
-            full_invoice_id = f"{prefix}{int(invoice_id):04d}"
-            confirmation_date_str = confirmation_date.strftime('%Y-%m-%d')
+            full_invoice_id = f"{prefix}{int(confirmed_invoice.invoice_number):04d}"
             
-            click.echo(f"Invoice #{full_invoice_id} confirmed on {confirmation_date_str}.")
-            click.echo(f"Next invoice will start from {confirmation_date_str}.")
+            click.echo(f"Invoice #{full_invoice_id} confirmed.")
+            click.echo(f"Invoice period: {confirmed_invoice.start_date} to {confirmed_invoice.end_date}")
+            click.echo(f"Next invoice will start from {confirmed_invoice.end_date}.")
         else:
             click.echo(f"Error: Could not confirm invoice #{invoice_number}.")
-            click.echo("Make sure the invoice number is valid and follows the last confirmed invoice.")
+            click.echo("Make sure the invoice number is valid and matches the unconfirmed invoice.")
             
     except Exception as e:
         click.echo(f"Error confirming invoice: {str(e)}", err=True)

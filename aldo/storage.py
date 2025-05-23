@@ -20,10 +20,11 @@ class WorkHoursStorage:
         # Use appdirs to get standard data locations
         self.data_dir = Path(appdirs.user_data_dir("aldo", "aldo"))
         self.data_file = self.data_dir / 'aldo_data.json'
-        
+
         # Initialize with default structure
         self.aldo_data = {
-            'last_confirmed_invoice_number': None,
+            'last_confirmed_invoice': None,
+            'last_unconfirmed_invoice': None,
             'confirmed_invoices': {},
             'work_entries': []
         }
@@ -34,26 +35,6 @@ class WorkHoursStorage:
         # Load data if it exists
         if self.data_file.exists():
             self.load_data()
-            
-        # Handle migration from old format if needed
-        self._migrate_data_if_needed()
-    
-    def _migrate_data_if_needed(self):
-        """Migrate data from old format to new format if needed"""
-        # Check for old work_hours.json file
-        old_file = self.data_dir / 'work_hours.json'
-        if old_file.exists():
-            try:
-                with open(old_file, 'r') as f:
-                    old_data = json.load(f)
-                
-                # Check if we have entries in old format but not in new format
-                if 'entries' in old_data and not self.aldo_data.get('work_entries'):
-                    self.aldo_data['work_entries'] = old_data['entries']
-                    self.save_data()
-                    # Keep the old file for backup
-            except:
-                pass  # Silently fail if we can't read the old file
     
     def ensure_storage_exists(self):
         """Ensure storage directory and file exist"""
@@ -69,17 +50,6 @@ class WorkHoursStorage:
         try:
             with open(self.data_file, 'r') as f:
                 self.aldo_data = json.load(f)
-                
-            # For backward compatibility with older versions
-            # If the structure doesn't match our expected format, initialize it
-            if 'work_entries' not in self.aldo_data and 'entries' in self.aldo_data:
-                self.aldo_data['work_entries'] = self.aldo_data.pop('entries')
-                
-            if 'last_confirmed_invoice_number' not in self.aldo_data:
-                self.aldo_data['last_confirmed_invoice_number'] = None
-                
-            if 'confirmed_invoices' not in self.aldo_data:
-                self.aldo_data['confirmed_invoices'] = {}
         except Exception as e:
             raise Exception(f"Error loading data: {str(e)}")
     
@@ -204,19 +174,80 @@ class WorkHoursStorage:
         # Convert the string date to a date object
         date_str = earliest_entry["date"]
         return datetime.strptime(date_str, '%Y-%m-%d').date()
+
+    def get_next_invoice_number(self):
+        """Get the next invoice number"""
+        last_confirmed = self.aldo_data['last_confirmed_invoice']
+        if last_confirmed:
+            return int(last_confirmed['invoice_number']) + 10
+        else:
+            # No confirmed invoices yet, start from default base number
+            return 10
     
-    def confirm_invoice(self, invoice_number, config, confirmation_date=None):
+    def store_unconfirmed_invoice(self, invoice_number, start_date, end_date, config=None):
+        """
+        Store an unconfirmed invoice that was just generated
+        
+        Args:
+            invoice_number: The invoice number (can be numeric part only or full with prefix)
+            start_date: The start date of the invoice period
+            end_date: The end date of the invoice period
+            config: The configuration object (optional)
+        """
+        # Extract numeric part if full invoice number with prefix is provided
+        if config:
+            prefix = config.config['invoice']['prefix']
+            if isinstance(invoice_number, str) and invoice_number.startswith(prefix):
+                numeric_part = invoice_number[len(prefix):]
+            else:
+                numeric_part = str(invoice_number)
+        else:
+            numeric_part = str(invoice_number)
+        
+        # Convert dates to strings for JSON storage
+        start_date_str = start_date.strftime('%Y-%m-%d') if hasattr(start_date, 'strftime') else str(start_date)
+        end_date_str = end_date.strftime('%Y-%m-%d') if hasattr(end_date, 'strftime') else str(end_date)
+        
+        self.aldo_data['last_unconfirmed_invoice'] = {
+            'invoice_number': numeric_part,
+            'start_date': start_date_str,
+            'end_date': end_date_str
+        }
+        self.save_data()
+    
+    def get_last_unconfirmed_invoice(self):
+        """
+        Get the last unconfirmed invoice
+        
+        Returns:
+            ConfirmedInvoice namedtuple or None if no unconfirmed invoice exists
+        """
+        unconfirmed = self.aldo_data.get('last_unconfirmed_invoice')
+        if not unconfirmed:
+            return None
+            
+        return ConfirmedInvoice(
+            invoice_number=unconfirmed['invoice_number'],
+            start_date=unconfirmed['start_date'],
+            end_date=unconfirmed['end_date']
+        )
+
+    def confirm_invoice(self, invoice_number, config):
         """
         Confirm an invoice was sent and store its information
         
         Args:
             invoice_number: The invoice number to confirm (with or without prefix)
             config: The configuration object to get invoice prefix
-            confirmation_date: The date when the invoice was confirmed (defaults to today)
             
         Returns:
             bool: True if confirmation was successful, False otherwise
         """
+        # Check if there's an unconfirmed invoice to confirm
+        unconfirmed = self.aldo_data.get('last_unconfirmed_invoice')
+        if not unconfirmed:
+            raise Exception("No unconfirmed invoice found. Generate an invoice first before confirming.")
+        
         # Extract the numeric part if the full invoice ID was provided
         prefix = config.config['invoice']['prefix']
         if isinstance(invoice_number, str) and invoice_number.startswith(prefix):
@@ -227,48 +258,28 @@ class WorkHoursStorage:
             except (ValueError, TypeError):
                 return False
         
+        # Check if the invoice number matches the unconfirmed invoice
+        if str(invoice_number) != unconfirmed['invoice_number']:
+            raise Exception(f"Invoice number mismatch. Expected {unconfirmed['invoice_number']}, got {invoice_number}")
+        
         # Format as string for storage
         invoice_id = str(invoice_number)
         
-        # If confirmation_date is not provided, use today's date
-        if confirmation_date is None:
-            confirmation_date_str = datetime.now().strftime('%Y-%m-%d')
-        else:
-            # Convert date object to string
-            confirmation_date_str = confirmation_date.strftime('%Y-%m-%d')
-            
-        # Determine start date for this invoice
-        if self.aldo_data['last_confirmed_invoice_number']:
-            # Get the last confirmed invoice
-            last_invoice = self.get_last_confirmed_invoice()
-            if last_invoice:
-                # Start date is the day after the end date of the last invoice
-                last_end_date = datetime.strptime(last_invoice.end_date, '%Y-%m-%d').date()
-                start_date_str = (last_end_date + timedelta(days=1)).strftime('%Y-%m-%d')
-            else:
-                # Fallback to earliest entry
-                earliest_date = self.get_earliest_entry_date()
-                if earliest_date:
-                    start_date_str = earliest_date.strftime('%Y-%m-%d')
-                else:
-                    start_date_str = confirmation_date_str
-        else:
-            # No previous invoice, start from earliest entry or confirmation date
-            earliest_date = self.get_earliest_entry_date()
-            if earliest_date:
-                start_date_str = earliest_date.strftime('%Y-%m-%d')
-            else:
-                start_date_str = confirmation_date_str
-        
-        # Store the invoice confirmation
-        self.aldo_data['confirmed_invoices'][invoice_id] = {
+        # Create the confirmed invoice using the unconfirmed invoice data
+        confirmed_invoice_data = {
             'invoice_number': invoice_id,
-            'start_date': start_date_str,
-            'end_date': confirmation_date_str
+            'start_date': unconfirmed['start_date'],
+            'end_date': unconfirmed['end_date']
         }
         
-        # Update the last confirmed invoice number
-        self.aldo_data['last_confirmed_invoice_number'] = invoice_id
+        # Store the invoice confirmation
+        self.aldo_data['confirmed_invoices'][invoice_id] = confirmed_invoice_data
+        
+        # Update the last confirmed invoice
+        self.aldo_data['last_confirmed_invoice'] = confirmed_invoice_data
+        
+        # Clear the unconfirmed invoice
+        self.aldo_data['last_unconfirmed_invoice'] = None
         
         # Save changes
         self.save_data()
@@ -282,16 +293,14 @@ class WorkHoursStorage:
         Returns:
             ConfirmedInvoice namedtuple or None if no invoice has been confirmed
         """
-        invoice_id = self.aldo_data['last_confirmed_invoice_number']
-        if not invoice_id or invoice_id not in self.aldo_data['confirmed_invoices']:
+        last_confirmed = self.aldo_data['last_confirmed_invoice']
+        if not last_confirmed:
             return None
             
-        invoice_data = self.aldo_data['confirmed_invoices'][invoice_id]
-        
         return ConfirmedInvoice(
-            invoice_number=invoice_data['invoice_number'],
-            start_date=invoice_data['start_date'],
-            end_date=invoice_data['end_date']
+            invoice_number=last_confirmed['invoice_number'],
+            start_date=last_confirmed['start_date'],
+            end_date=last_confirmed['end_date']
         )
     
     def get_invoice_by_number(self, invoice_number, config):
