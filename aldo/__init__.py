@@ -5,6 +5,6 @@ A command-line tool to help freelancers track their work hours
 and generate professional invoices.
 """
 
-__version__ = "1.0.3"
+__version__ = "1.0.4"
 __author__ = "Kazluu"
 __license__ = "MIT"

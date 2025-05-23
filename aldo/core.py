@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 from aldo.storage import WorkHoursStorage
 from aldo.config import Config
 from aldo.invoice import InvoiceGenerator
+from aldo import __version__
 
 # Initialize global config and storage
 config = Config()
@@ -46,7 +47,7 @@ def validate_hours(ctx, param, value):
     return value
 
 @click.group()
-@click.version_option(version='1.0.3')
+@click.version_option(version=__version__)
 def cli():
     """
     Aldo - Work Hours Tracker and Invoice Generator for Freelancers
@@ -207,7 +208,7 @@ def _ensure_date_object(date_value, default_date=None):
     try:
         if isinstance(date_value, str):
             return datetime.strptime(date_value, '%Y-%m-%d').date()
-        return default_date
+        return default_datet
     except (ValueError, TypeError):
         return default_date
 
