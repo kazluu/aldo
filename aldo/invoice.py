@@ -90,7 +90,9 @@ class InvoiceGenerator:
             rightMargin=0.5*inch,
             leftMargin=0.5*inch,
             topMargin=0.5*inch,
-            bottomMargin=0.5*inch
+            bottomMargin=0.5*inch,
+            title=f"Invoice {invoice_number}",
+            subject=f"Invoice {invoice_number} for {start_date} to {end_date}"
         )
         
         # Build the invoice content
